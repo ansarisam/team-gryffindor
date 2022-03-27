@@ -2,17 +2,24 @@
 """
 Created on Fri Mar 11 21:05:55 2022
 
-@author: alexl_g8yj9pc
+@author: A. Lichtenberg
+@purpose: Converts CONLL output into a huggingface dataset to be used for
+transfer learning
 """
 
-with open(r'..\data\conll_labels\AL_labels_0311.conll', 'r', encoding = 'utf-8') as f:
-    al_text = f.read()
+# Read in data
+import os 
 
-with open(r'..\data\conll_labels\tb_labels_0312.conll', 'r', encoding = 'utf-8') as f:
-    tb_text = f.read()
+conll_filepath = r'..\data\conll_labels'
+text = str()
 
-text = al_text + tb_text
-#get from conll to nice format    
+for filename in os.listdir(conll_filepath):
+    with open(os.path.join(conll_filepath,filename), 'r', encoding = 'utf-8') as f:
+        text += f.read()
+
+
+
+#get from conll to dataset format   
 span_counter = 0
 dict_list = [] 
 span_id = span_counter
@@ -94,7 +101,11 @@ e_type_dict = {
                 "B-Card Name":11,
                 "I-Card Name":12,
                 "B-Jurisdiction":13,
-                "I-Jurisdiction":14
+                "I-Jurisdiction":14,
+                "B-Interest Rate":15,
+                "I-Interest Rate":16,
+                "B-Credit Card":11,
+                "I-Credit Card":12
                 }
 
 def tokenize_and_align_labels(examples):
@@ -143,5 +154,24 @@ dataset = Dataset.from_dict(custom_dict['train'])
 tokenized_dataset = dataset.map(tokenize_and_align_labels, batched = True, batch_size=1000)
 tokenized_dataset.features[f'ner_tags'].feature.names = e_type_dict
 
-dataset_json = tokenized_dataset.to_json(r'../data/hf_datasets/TG_dataset.json')
+#dataset_json = tokenized_dataset.to_json(r'../data/hf_datasets/TG_dataset_final.json')
 
+dataset.features[f'ner_tags'].feature.names = e_type_dict
+#dataset.to_json(r'../data/hf_datasets/TG_dataset_w_IR_not_tokenized.json')
+
+
+### Create Visualizations 
+# Only counting tags that were the beginning of a tag, cut out the 'B-'
+# that prepends all tags
+all_tags = [tag[2:] for d in dict_list for tag in d['ner_tags'] if tag.startswith('B-')]
+all_tags = list(map(lambda x: x.replace('Credit Card', 'Card Name'), all_tags))
+import pandas as pd
+import seaborn as sns
+entity_df = pd.DataFrame(all_tags, columns = ['label'])
+
+count_plot = sns.countplot(x = 'label', data = entity_df, order = entity_df['label'].value_counts().index,
+              color = 'black')
+count_plot.set_xticklabels(count_plot.get_xticklabels(), rotation = 45, horizontalalignment='right')
+count_plot.set(xlabel = 'Label',
+               ylabel = 'Count',
+               title = "Count of Entity Types Manually Tagged")

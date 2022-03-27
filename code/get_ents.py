@@ -230,6 +230,8 @@ relation_df_final = to_df.merge(final_df, left_on = 'from_id', right_on ='id', h
 relation_df_final.drop(['id','ls_file_y'], axis = 1, inplace = True)
 relation_df_final.rename(columns = {'ls_file_x':'ls_file','label':'from_label','token':'from_token'}, inplace = True)
 relation_df_final.dropna(thresh = 3, inplace= True)
+relation_df_final['to_label'] = relation_df_final['to_label'].apply(lambda x: x.replace('Credit Card', 'Card Name'))
+relation_df_final['from_label'] = relation_df_final['from_label'].apply(lambda x: x.replace('Credit Card', 'Card Name'))
 
 labels_to_remove = ['Termination Date','Execution Date','Credit Limit', 'Annual Fee', 'Payment Due Date', 'PER']
 

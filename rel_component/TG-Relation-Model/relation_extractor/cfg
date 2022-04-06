@@ -1,0 +1,10 @@
+{
+  "labels":[
+    "CARD INTEREST RATE",
+    "LOCATED AT",
+    "ISSUED BY",
+    "RELATED",
+    "JURISDICTION IN"
+  ],
+  "threshold":0.5
+}

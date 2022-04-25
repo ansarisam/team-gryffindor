@@ -3,17 +3,14 @@
 Created on Sat Apr  2 17:13:37 2022
 
 @author: A. Lichtenberg
+@updated: 24 APR 22
 """
 # Imports needed for NER
 import spacy
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 from transformers import pipeline
-# Getting relationships with spaCy 
-from spacy.tokens import DocBin, Doc 
-from spacy.training.example import Example
-from rel_pipe import make_relation_extractor, score_relations
-from rel_model import create_relation_model, create_classification_layer, create_instances, create_tensors
-
+# Import our custom model
+import en_rel_pipeline
 
 def tokenization_fixer(doc, ent_start):
     toks = [t.idx for t in doc]
@@ -21,11 +18,11 @@ def tokenization_fixer(doc, ent_start):
        if ent_start > t:
            continue
        if ent_start == t:
-           ent_end = toks[i+1]
+           ent_end = toks[i+1] - 1
            return ent_start, ent_end
        else:
            ent_start = toks[i-1]
-           ent_end = toks[i]
+           ent_end = toks[i] - 1
            return ent_start, ent_end
        
 def get_relationships(doc, threshold = 0.5):
@@ -48,19 +45,29 @@ def get_relationships(doc, threshold = 0.5):
                             relations.append(rd)
     return relations
 
-#example = "First National Credit Union issues the Super Awesome Rewards Card with an introductory APR of 15.00%"
+def check_duplicate_ents(entities):
+    for i, e1 in enumerate(entities):
+        for j, e2 in enumerate(entities):
+            is_sub = set((range(e2.start,e2.end))).issubset(range(e1.start,e1.end))
+            is_same = e1.text == e2.text
+            if is_sub and not is_same:
+                del entities[j]
+            elif is_sub and i != j:
+                del entities[j]
+                
+    return entities
 
 def getNER(text, relation_threshold = 0.5):
     # Getting Entities with our custom huggingface model
-    tokenizer = AutoTokenizer.from_pretrained("timhbach/Team-Gryffindor-bert-base-finetuned-NER-creditcardcontract")
-    model = AutoModelForTokenClassification.from_pretrained("timhbach/Team-Gryffindor-bert-base-finetuned-NER-creditcardcontract")
+    tokenizer = AutoTokenizer.from_pretrained("timhbach/Team-Gryffindor-distilbert-base-finetuned-NER-creditcardcontract-100epoch")
+    model = AutoModelForTokenClassification.from_pretrained("timhbach/Team-Gryffindor-distilbert-base-finetuned-NER-creditcardcontract-100epoch")
     
     nlp = pipeline("ner", model=model, tokenizer=tokenizer)
     
     ner_results = nlp(text)
 
     # Loading rel model from file
-    rel_nlp = spacy.load("rel_component/TG-Relation-Model")
+    rel_nlp = en_rel_pipeline.load()
     
     # Take HF output and turn into useable spaCy format    
     doc = rel_nlp(text)
@@ -76,7 +83,7 @@ def getNER(text, relation_threshold = 0.5):
             while mid_token == True:
                 j += 1
                 if j >= len(ner_results) - 1:
-                    ent_end = d['start'] + len(d['word'])
+                    ent_end = ner_results[j]['end']
                     mid_token = False
                 else:
                     check_suf= ner_results[j]['entity'][2:]
@@ -95,14 +102,13 @@ def getNER(text, relation_threshold = 0.5):
                 ent = doc.char_span(ent_start,ent_end,label = label)
                 entities.append(ent)
     
-    # get rid of any duplicates            
-    doc.ents = set(entities)
+    # get rid of any duplicates or ents that are subsets          
+    entities = check_duplicate_ents(entities)
+    doc.ents = entities
             
     for name, proc in rel_nlp.pipeline:
         doc = proc(doc)
     
-    #ent_labels = [e.label_ for e in doc.ents]
-    #ents_for_output = [e.text for e in doc.ents]
     ents_for_output = []
     for ent in doc.ents:
          e_dict = {'name':ent.text,

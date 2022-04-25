@@ -14,6 +14,11 @@ example = 'lorem ipsum'
 ents, rels = getNER(example)
 ```
 
+## Entity Extraction 
 `getNER` calls our [custom-trained NER model](https://huggingface.co/timhbach/Team-Gryffindor-distilbert-base-finetuned-NER-creditcardcontract-100epoch) which tags a number of unique entity types: `Credit Card Name`, `Issuer`, `Jurisdiction`, and `Interest Rate`. Additionally, standard entity types like `PER`, `ORG`, and `LOC` are tagged. 
 
+## Relation Extraction
 `getNER` also calls a custom trained model to classify relationships between extracted entities. Relationship types identified by the model are: `Card Interest Rate`, `Located At`, `Issued By`, `Jurisdiction In`, and a generic `Related`. This model can be installed through the `rel_pipeline` whl file. While you can call the model whenever you'd like after installing, you do not need to specially call it for it to funtion in `getNER`- the function is hardcoded to look for that spaCy model installed on your machine. 
+
+## Outputs
+`getNER` returns two lists: `ents` and `rels`. `ents` is a list of dictionaries with the following keys: `name`, a string representing the entity's name, `label`, a string for how it was classified, and `start`, an integer corresponding to the start character of `name`. `rels` is also a list of dictionaries and contains the following keys: `from`, a string showing the `name` of the recieving end of the relationship, `to`, a string showing the `name` of the originating end of the relationship, `label`, a string showing the type of relationship extracted, and `p`, a float representing the probability of that relationship existing, according to the model. 
